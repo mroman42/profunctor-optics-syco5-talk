@@ -1,0 +1,1455 @@
+#+Title: Profunctor optics: a categorical update
+#+Date: September 5, 2019
+#+beamer_header: \institute{\small\textsc{SYCO 5, University of Birmingham}}
+#+beamer_header: \author{\textit{Mario Román}, Bryce Clarke, Fosco Loregian, Emily Pillmore,\\ Derek Elkins, Bartosz Milewski and Jeremy Gibbons}
+
+# Look for TODOs
+
+** Header                                                                                  :ignore:
+#+Options: H:2 toc:nil tasks:nil
+#+Language: en
+
+*** Beamer                                                                                :ignore:
+#+latex_class: beamer
+#+latex_class_options: [usenames,dvipsnames,8pt,mathserif,spanish]
+#+latex_cmd: xelatex
+#+latex_header: \usepackage[english]{babel}
+#+beamer_theme: metropolis [titleformat section=smallcaps,sectionpage=none,numbering=none,progressbar=none,block=fill]
+#+beamer_header: \usepackage{textpos}
+
+*** Inputenc, fontenc                                                                     :ignore:
+#+latex_header: \usepackage[T1]{fontenc}
+#+latex_header: \usepackage{CJKutf8}\usepackage[utf8]{inputenc} 
+#+latex_header: \newcommand{\hirayo}{\text{\usefont{U}{min}{m}{n}\symbol{'210}}} \DeclareFontFamily{U}{min}{} \DeclareFontShape{U}{min}{m}{n}{<-> udmj30}{}
+
+*** Show notes on second screen                                                           :ignore:
+#+beamer_header: \usepackage{pgfpages}
+#+beamer_header: \setbeameroption{hide notes}
+#+beamer_header: %\setbeameroption{show notes on second screen=right}
+#+beamer_header: \setbeamertemplate{note page}{\pagecolor{yellow!5}\insertnote}
+
+**** Bug in pgfpages                                                                     :ignore:
+# Hackish way to correct a bug in pgfpages https://tex.stackexchange.com/a/306662/64938
+#+beamer_header: \makeatletter 
+#+beamer_header: \renewcommand{\@makefnmark}{}
+#+beamer_header: \def\beamer@framenotesbegin{% at beginning of slide
+#+beamer_header:      \usebeamercolor[fg]{normal text}
+#+beamer_header:       \gdef\beamer@noteitems{}% 
+#+beamer_header:       \gdef\beamer@notes{}% 
+#+beamer_header: }
+#+beamer_header: \makeatother
+
+*** Bibliography                                                                          :ignore:
+#+beamer_header: \usepackage[backend=bibtex,natbib=true]{biblatex}
+#+beamer_header: \addbibresource{optics.bib}
+
+#+latex_header: \usepackage{tikz}
+#+latex_header: \usepackage{tikz-cd}
+#+latex_header: \usetikzlibrary{shapes,fit,tikzmark}
+
+#+beamer_header: \usepackage{amsthm}
+#+beamer_header: \usepackage{amsmath}
+
+*** Table of contents                                                                     :ignore:
+#+beamer_header: \setcounter{tocdepth}{1}
+#+beamer_header: \setbeamertemplate{section in toc}[sections numbered]
+
+*** Fonts                                                                                 :ignore:
+#+beamer_header: \usefonttheme{professionalfonts} 
+#+beamer_header: \usepackage{microtype}\DisableLigatures{encoding = *, family = tt*}
+#+beamer_header: \usepackage{Fira Sans} 
+#+beamer_header: \usepackage{FiraMono} 
+#+beamer_header: %\setmonofont{Iosevka}
+
+#+beamer_header: %\usepackage{fontspec} \setmonofont{Consolas}
+#+beamer_header: % \setmonofont[
+#+beamer_header: %   Contextuals={Alternate}
+#+beamer_header: % ]{Fira Code}
+
+*** Beamer colors                                                                         :ignore:
+#+beamer_header: \definecolor{accent}{HTML}{185A77}
+#+beamer_header: \colorlet{darkaccent}{accent!80!white}
+#+beamer_header: \definecolor{foreground}{RGB}{0, 0, 0}
+#+beamer_header: \definecolor{background}{RGB}{255, 255, 255}
+
+#+beamer_header: \setbeamercolor{normal text}{fg=foreground, bg=background}
+#+beamer_header: \setbeamercolor{alerted text}{fg=darkaccent, bg=background}
+#+beamer_header: \setbeamercolor{example text}{fg=foreground, bg=background}
+#+beamer_header: \setbeamercolor{frametitle}{fg=background, bg=accent}
+#+beamer_header: \setbeamercolor{headtitle}{fg=background!70!accent,bg=accent!90!foreground}
+#+beamer_header: \setbeamercolor{headnav}{fg=background,bg=accent!90!foreground}
+#+beamer_header: \setbeamercolor{section in head/foot}{fg=background,bg=accent}
+*** Colors                                                                                :ignore:
+#+latex_header: \definecolor{ugrColor}{HTML}{185A77} % Title
+#+latex_header: \definecolor{ugrColor2}{HTML}{185A77} % Sections
+#+latex_header: \definecolor{redPRL}{HTML}{ad2231}
+#+latex_header: \definecolor{bluePRL}{HTML}{1790bf}
+#+latex_header: \definecolor{greenPRL}{HTML}{078f60}
+
+#+latex_header: \newcommand{\white}[1]{{\textcolor{white}{#1}}}
+
+#+latex_header: \colorlet{myred}{redPRL}
+#+latex_header: \colorlet{myblue}{bluePRL}
+#+latex_header: \newcommand{\red}[1]{{\color{myred}{{#1}}}}
+#+latex_header: \newcommand{\blue}[1]{{\color{myblue}{{#1}}}}
+#+latex_header: \newcommand{\ctypes}[1]{\color{bluePRL}{#1}}
+#+latex_header: \newcommand{\cterms}[1]{\color{redPRL}{\texttt{#1}}}
+*** Proof trees                                                                           :ignore:
+#+latex_header: \usepackage{bussproofs}
+#+latex_header: \EnableBpAbbreviations{}
+*** Minted                                                                                :ignore:
+#+latex_header_extra: \usepackage{minted}[mathescape] \usemintedstyle{colorful}
+#+latex_header_extra: \definecolor{mbg}{HTML}{e7eef1}
+#+latex_header_extra: \setminted{fontsize=\footnotesize}
+#+latex_header_extra: \setminted[haskell]{linenos=false,fontsize=\small,bgcolor=mbg,stripnl=false,mathescape,escapeinside=||}
+#+latex_header_extra: \renewcommand{\theFancyVerbLine}{\sffamily\textcolor[rgb]{0.5,0.5,1.0}{\oldstylenums{\arabic{FancyVerbLine}}}}
+*** Multimedia                                                                            :ignore:
+#+beamer_header: \usepackage{multimedia}
+*** Macros                                                                                :ignore:
+#+latex_header: \usepackage{amssymb} \usepackage{mathtools} \usepackage{amsmath}
+#+latex_header: \usepackage{bbm} \usepackage{stmaryrd}
+#+latex_header: \DeclarePairedDelimiter\ceil{\lceil}{\rceil}
+#+latex_header: \DeclarePairedDelimiter\floor{\lfloor}{\rfloor}
+#+latex_header: \DeclarePairedDelimiter\intr{\llbracket}{\rrbracket} % Interpretation brackets
+*** Marsden's diagrams                                                                    :ignore:
+# I am using Marsden's diagrams!
+#+latex_header: \usepackage{macros}
+#+latex_header: \usepackage{diag}
+#+latex_header: \usepackage{eqproof}
+
+#+latex_header: \newcommand{\leftop}{\ensuremath{\operatorname{\lhd}}}
+#+latex_header: \newcommand{\rightop}{\ensuremath{\operatorname{\rhd}}}
+
+#+latex_header: \newcommand{\mvright}[1]{\ensuremath{#1^{\rhd}}}
+#+latex_header: \newcommand{\mvrightright}[1]{\ensuremath{#1^{\rhd\rhd}}}
+#+latex_header: \newcommand{\mvleft}[1]{\ensuremath{#1^{\lhd}}}
+#+latex_header: \newcommand{\mvleftleft}[1]{\ensuremath{#1^{\lhd\lhd}}}
+
+#+latex_header: \newcommand{\adjsql}[1]{\ensuremath{#1_l}}
+#+latex_header: \newcommand{\adjsqr}[1]{\ensuremath{#1_r}}
+
+#+latex_header: \newcommand{\repcontrato}[4]{
+#+latex_header: \path (#1.center) ++(0,-0.5) coordinate (#1-r)
+#+latex_header:      +(-1,1) coordinate (#1-rl)
+#+latex_header:      +(1,1) coordinate (#1-rr);
+#+latex_header: \coordinate (#1-a) at (#1.south);
+#+latex_header: \path
+#+latex_header:  let \p1 = (#1.north) in
+#+latex_header:  let \p2 = (#1-rl) in
+#+latex_header:  let \p3 = (#1-rr) in
+#+latex_header:  coordinate (#1-b) at (\x2, \y1)
+#+latex_header:  coordinate (#1-c) at (\x3, \y1);
+#+latex_header: \fill[catset] (#1.south) -- (#1-r) to[out=0, in=270] (#1-rr) -- (#1-c) -- (#1.north east) -- (#1.south east) -- cycle;
+#+latex_header: \fill[catcop] (#1-b) -- (#1-rl) to[out=270,in=180] (#1-r) to[out=0,in=270] (#1-rr) -- (#1-c) -- cycle;
+#+latex_header: \fill[catterm] (#1.south) -- (#1-r) to[out=180, in=270] (#1-rl) -- (#1-b) -- (#1.north west) -- (#1.south west) -- cycle;
+#+latex_header: \draw (#1-r) to[out=180,in=270] (#1-rl) to node[swap]{#2} (#1-b);
+#+latex_header: \draw (#1-r) to[out=0, in=270] (#1-rr) to node[swap]{#3} (#1-c);
+#+latex_header: \draw (#1-a) to node[swap]{$*$} (#1-r);
+#+latex_header: \strnat{#1-r};
+#+latex_header: \strlabu{#1-r}{#4}
+#+latex_header: }
+#+latex_header: \newcommand{\repcontratoex}[5]{
+#+latex_header: \coordinate[label=below:#2] (#1-b) at (#1.south);
+#+latex_header: \coordinate[label=above:#5] (#1-t) at (#1.north);
+#+latex_header:  \draw (#1-b) -- ++(0,1.5)
+#+latex_header:        (#1-t) -- ++(0,-1.5);
+#+latex_header:  \path (#1.south west) -- ++(0.5,1) coordinate (#1-bl)
+#+latex_header:        (#1.north east) -- ++(-0.5,-1) coordinate (#1-tr);
+#+latex_header:  \node[rectangle, fit=(#1-bl)(#1-tr)] (#1-subdiag) {};
+#+latex_header:  \repcontrato{#1-subdiag}{#2}{#3}{#4};
+#+latex_header:  \draw[very thick] (#1-subdiag.south west) rectangle (#1-subdiag.north east);
+#+latex_header: \begin{pgfonlayer}{background}
+#+latex_header:  \fill[catterm] (#1.south west) rectangle (#1.north);
+#+latex_header:  \fill[catc] (#1.south east) rectangle (#1.north);
+#+latex_header: \end{pgfonlayer}
+#+latex_header: }
+
+*** Hyperref                                                                              :ignore:
+#+latex_header: \usepackage{hyperref}
+#+latex_header: \hypersetup{colorlinks=false}
+*** Hiragana                                                                              :ignore:
+#+latex_header: \usepackage{CJKutf8}\usepackage[utf8]{inputenc} 
+#+latex_header: \DeclareFontFamily{U}{min}{} \DeclareFontShape{U}{min}{m}{n}{<-> udmj30}{}
+#+latex_header: \newcommand{\hirayo}{\text{\usefont{U}{min}{m}{n}\symbol{'210}}}
+# #+latex_header: \newcommand{\hirata}{\text{\usefont{U}{min}{m}{n}\symbol{'137}}}
+#+latex_header: \newcommand{\hirata}{\mathrm{Tmb}}
+
+*** Cancel                                                                                :ignore:
+# #+latex_header: \usepackage[makeroom]{cancel}
+
+# https://tex.stackexchange.com/a/31370/64938
+# #+latex_header: \renewcommand{\CancelColor}{\color{red}} %change cancel color to red
+# #+latex_header:\makeatletter
+# #+latex_header:\let\my@cancelto\cancelto %copy over the original cancelto command
+# #+latex_header:\newcommand<>{\cancelto}[2]{\alt#3{\my@cancelto{#1}{#2}}{\mathrlap{#2}\phantom{{#2}}}}
+# #+latex_header:% redefine the cancelto command, using \phantom to assure that the
+# #+latex_header:% result doesn't wiggle up and down with and without the arrow
+# #+latex_header:\makeatother
+
+*** tikzcancel                                                                            :ignore:
+#+latex_header: \tikzset{
+#+latex_header: main node/.style={inner sep=0,outer sep=0},
+#+latex_header: label node/.style={inner sep=0,outer ysep=.2em,outer xsep=.4em,font=\scriptsize,overlay},
+#+latex_header: strike out/.style={shorten <=-.2em,shorten >=-.5em,overlay}
+#+latex_header: }
+
+#+latex_header: \newcommand{\cancelto}[3][]{\tikz[baseline=(N.base)]{
+#+latex_header:   \node[main node](N){$#2$};
+#+latex_header:   \node[label node,#1, anchor=south west] at (N.north east){$#3$};
+#+latex_header:   \draw[strike out,-latex,#1]  (N.south west) -- (N.north east);
+#+latex_header: }}
+#+latex_header: \newcommand{\bcancelto}[3][]{\tikz[baseline=(N.base)]{
+#+latex_header:   \node[main node](N){$#2$};
+#+latex_header:   \node[label node,#1, anchor=north west] at (N.south east){$#3$};
+#+latex_header:   \draw[strike out,-latex,#1]  (N.north west) -- (N.south east);
+#+latex_header: }}
+
+** Macros                                                                                  :ignore:
+#+latex_header: \renewcommand{\Sets}{\mathbf{Sets}}
+#+latex_header: \renewcommand{\C}{\mathbf{C}}
+#+latex_header: \renewcommand{\D}{\mathbf{D}}
+#+latex_header: \renewcommand{\M}{\mathbf{M}}
+#+latex_header: \renewcommand{\Optic}{\mathbf{Optic}}
+#+latex_header: \newcommand{\repl}{\mathrm{repl}}
+#+latex_header: \newcommand{\img}{\mathrm{img}}
+
+#+latex_header: \newcommand{\optic}[2]{\langle #1 \mid #2 \rangle}
+#+latex_header: \newcommand{\trv}{\operatorname{trv}}
+#+latex_header: \newcommand{\Optic}{\mathbf{Optic}}
+#+latex_header: \newcommand{\Sets}{\mathbf{Sets}}
+#+latex_header: \newcommand{\Lan}{\mathsf{Lan}}
+#+latex_header: \newcommand{\Ran}{\mathsf{Ran}}
+#+latex_header: \newcommand{\Nat}{\mathrm{Nat}}
+
+#+latex_header: \newcommand{\Prof}{\mathbf{Prof}}
+#+latex_header: \newcommand{\C}{\mathbf{C}}
+#+latex_header: \newcommand{\D}{\mathbf{D}}
+#+latex_header: \newcommand{\M}{\mathbf{M}}
+#+latex_header: \newcommand{\N}{\mathbf{N}}
+#+latex_header: \newcommand{\mact}{\underline{m}}
+#+latex_header: \newcommand{\nact}{\underline{n}}
+#+latex_header: \newcommand{\iact}{\underline{i}}
+#+latex_header: \newcommand{\kact}{\underline{k}}
+
+#+latex_header: \newcommand{\nto}{\nrightarrow}
+#+latex_header: \newcommand\id{\mathrm{id}}
+#+latex_header: \newcommand\dinat{\overset{\cdot\cdot}\to}
+#+latex_header: \newcommand\Id{\mathrm{Id}}
+#+latex_header: \newcommand\Nat{\mathrm{Nat}}
+#+latex_header: \newcommand\Grp{\mathsf{Grp}}
+#+latex_header: \newcommand\Set{\mathsf{Set}}
+#+latex_header: \newcommand\zet{\mathbb{Z}}
+#+latex_header: \newcommand\nat{\mathbb{N}}
+#+latex_header: \newcommand\lensto{\nrightarrow}
+#+latex_header: \newcommand\rat{\mathbb{Q}}
+#+latex_header: \newcommand\reals{\mathbb{R}}
+#+latex_header: \newcommand\com{\mathbb{C}}
+#+latex_header: \newcommand\hC{\widehat{\cal C}}
+#+latex_header: \newcommand\todot{\xrightarrow{.}}
+#+latex_header: \newcommand\tonat{\Rightarrow}
+#+latex_header: \newcommand\shape{\mbox{\textesh}}
+#+latex_header: \newcommand\Vcat{\cal{V}\mbox{-category}}
+#+latex_header: \newcommand\Vfunctor{\cal{V}\mbox{-functor}}
+#+latex_header: \newcommand\Vt[1]{\cal{V}\mbox{-#1}}
+#+latex_header: \newcommand\V{{\cal{V}}}
+#+latex_header: \newcommand\opticmorph[4]{\begin{pmatrix}#1 \\ #2\end{pmatrix} \to \begin{pmatrix}#3 \\ #4\end{pmatrix}}
+
+* Title
+#+beamer: \maketitle
+* Motivation
+
+# Thank you very much to the organizers.
+
+# I am going to talk to you about optics, which are ways of accessing
+# data structures in programming. Common accessing patterns that
+# repeat again and again, so we can abstract them.
+
+# We will give them an algebraic description and study a
+# representation theorem.
+
+** Motivation
+# Let's motivate why are we studying these.
+
+#+latex: \begin{center}{\huge\textbf{Part 1: Motivation}}\end{center}
+
+** Lenses
+:PROPERTIES:
+:BEAMER_OPT: fragile
+:END:
+
+# We start with some motivation for studying this problem.  
+
+# How do we do that?  We need a "view" function that takes the 
+# data structure "s" and looks into one of its parts "a". 
+
+# And then we need an "update" function, that takes the data structure
+# and something new "b" that we want to put on the place of "a".  With
+# that we get "t", a new data structure.
+
+# For example, we have a set of postal addresses and one of the fields
+# of this postal address is a Street.  I can see the street and I can
+# update it; this is a bidirectional accessor.
+
+# We want bidirectional *data accessors* (i.e. *Lenses* give /view/ and /update/).
+
+#+attr_latex: :options [Oles, 1982]
+#+begin_definition
+\[\mathbf{Lens}
+\left( \begin{pmatrix} a \\ b \end{pmatrix}, \begin{pmatrix} s \\ t \end{pmatrix} \right) 
+= \mathbf{Sets}(s , a) \times \mathbf{Sets}(s \times b , t).\]
+#+end_definition
+
+#+name: lens
+#+attr_latex: :width 5cm
+[[./images/lens-wn.png]] 
+
+\[\begin{aligned}
+(example) \quad && \mathrm{view} \colon & \mathbf{Postal} \to \mathbf{Street} \\
+                && \mathrm{update} \colon & \mathbf{Postal} \times \mathbf{Street} \to \mathbf{Postal}
+\end{aligned}\]
+
+** Prisms (alternatives)
+# Not all data accessors fill this classic pattern. For example, an
+# address is Maybe! a postal address, but maybe not, and it could be
+# also an email address.  We need to use a different kind of data
+# accessor.
+
+#+begin_definition
+\[\mathbf{Prism}
+\left( \begin{pmatrix} a \\ b \end{pmatrix}, \begin{pmatrix} s \\ t \end{pmatrix} \right) 
+= \mathbf{Sets}(s , t + a) \times \mathbf{Sets}(b , t).\]
+#+end_definition
+
+#+name: prism-wn
+#+attr_latex: :width 4.8cm
+[[./images/prism-wn.png]]  
+ 
+
+\[\begin{aligned}
+(example)\quad && \mathrm{match} \colon & \mathbf{String} \to \mathbf{String} + \mathbf{Postal} \\
+&&\mathrm{build} \colon & \mathbf{Postal} \to \mathbf{String}
+\end{aligned}\]
+
+
+** Traversals (and multiple foci)
+# Even more complicated, sometimes we want to deal not with one focus,
+# but multiple foci at the same time.
+
+# Here we have some data structure that can contain a list of
+# subparts. We want to extract them, change that list and then
+# update the original structure with the new elements.
+
+#+begin_definition
+\[\mathbf{Traversal}
+\left( \begin{pmatrix} s \\ t \end{pmatrix},
+\begin{pmatrix} a \\ b \end{pmatrix} \right) = 
+\mathbf{Sets}\left(s , \sum\nolimits_n a^n \times (b^n \to t)\right).
+\]
+#+end_definition
+
+#+name: traversal
+#+attr_latex: :width 7cm
+[[./images/traversal-wn.jpg]]
+
+\[\begin{aligned}
+(example)\quad && \mathrm{extract} \colon & \mathbf{MailList} \to \sum_{n \in \mathbb{N}} \mathbf{Email}^n \times \left(\mathbf{Email}^n \to \mathbf{MailList}\right) \\
+\end{aligned}\]
+
+** This is not modular
+:PROPERTIES:
+:BEAMER_OPT: fragile
+:END:
+How to compose *two lenses*? How to compose a *Prism* with a *Lens*?
+\begin{center}
+\begin{tikzcd}
+\begin{pmatrix}s \\ t\end{pmatrix} \rar{m,b}[swap]{\mathrm{prism}} & 
+\begin{pmatrix}a \\ b\end{pmatrix} \rar{v,u}[swap]{\mathrm{lens}} &
+\begin{pmatrix}x \\ y\end{pmatrix}
+\end{tikzcd}
+\end{center}
+
+\pause
+
+Every case (Prism+Lens, Lens+Prism, Traversal+Prism+Other...) needs special attention.
+For instance, a lens and a prism
+\[\begin{aligned}
+\mathbf{v} \in \mathbf{Sets}(s , t + a) & \quad &
+\mathbf{m} \in \mathbf{Sets}(a , x) \\
+\mathbf{u} \in \mathbf{Sets}(b , t) &&
+\mathbf{b} \in \mathbf{Sets}(a \times y , b)
+\end{aligned}
+\]
+can be composed into the following morphism, which is neither a lens nor a prism.
+\[
+\mathbf{m} \circ [ \mathrm{id}_t , \mathbf{v} \times \Lambda(\mathbf{b} \circ \mathbf{u})]
+\in 
+\mathbf{Sets}(s , t + x \times (y \to t)).
+\]
+
+** This is not modular (in code)
+:PROPERTIES:
+:BEAMER_OPT: fragile
+:END:
+
+#+BEGIN_SRC haskell
+  -- Given a lens and a prism,
+  viewStreet   :: Postal -> Street
+  updateStreet :: Postal -> Street -> Postal
+  matchAddress :: String -> Either String Postal
+  buildAddress :: Postal -> String
+  
+  -- the composition is neither a lens nor a prism.
+  parseStreet :: String -> Either String (Street , Street -> Postal)
+  parseStreet s = case matchAddress s of
+    Left  addr -> Left  addr
+    Right post -> Right (viewStreet post, updateStreet post)
+#+END_SRC
+
+** Profunctor optics
+# This problem has been solved for programmers with profunctor optics.
+# The solution given by Kmett in the "lens" library for Haskell was
+# the following: some kinds of data accesors have an equivalent
+# formulation in terms of functions polymorphic over a profunctor.
+
+# That is very convenient, because, even if they are equivalent,
+# composition of optics in this representation becomes function
+# composition.  We do not need to worry anymore.
+
+Perhaps surprisingly, some optics are equivalent to parametric
+functions over profunctors.
+
+ * *Lenses* are parametric functions.
+   \[
+   \Sets(s , a) \times \Sets(s \times b , t) \quad \cong \quad  \forall p \in \hirata(\times) . p(a,b) \to p(s,t)
+   \]
+
+ * *Prisms* are parametric functions.
+   \[
+   \Sets(a , a + x) \times \Sets(y , b) \quad \cong \quad \forall p \in \hirata(+) . p(x,y) \to p(a,b)
+   \]
+
+Where $p \in \hirata(\otimes)$ is called a /Tambara module/; this means we have a
+natural transformation $p(a,b) \to p(c \otimes a, c \otimes b)$ subject to some
+conditions
+
+\pause
+
+*** This solves composition
+:PROPERTIES:
+:beamer_env: block
+:END:
+Now composition of optics is just /function composition/. From
+$p(a,b) \to p(s,t)$ and $p(x,y) \to p(a,b)$ we can get $p(x,y) \to p(s,t)$.
+
+** An example in Haskell
+# TODO: Unfold code and have spaces at the beginning and end
+
+#+BEGIN_SRC haskell
+  -- Haskell code  --
+
+
+      
+  let address = "15 Parks Rd, OX1 3QD, Oxford"
+  
+  address^.postal
+  -- Street:  15 Parks Rd
+  -- Code:    OX1 3QD
+  -- City:    Oxford
+  
+  address^.postal.street
+  -- "15 Parks Rd"
+  
+  address^.postal.street <~ "7 Banbury Rd"
+  -- "7 Banbury Rd, OX1 3QD, Oxford"
+
+
+
+  -------------------  
+#+END_SRC
+
+
+** Haskell implementation: traversals                                                    :noexport:
+#+attr_latex: :width 11cm
+[[./images/traversalexample.png]]
+
+* Outline
+** Outline
+
+ * *Existential optics:* a definition of optic.
+ * *Profunctor optics:* on optics as parametric functions.
+ * *Composing optics:* on how composition works.
+ * *Case study:* on how to invent an optic.
+ * *Further work:* and implementations.
+
+* Existential optics
+** Preliminaries
+
+# We are going to use some results from the theory of (co)ends to give
+# a unified representation of our optics.
+
+#+latex: \begin{center}{\huge\textbf{Part 2: Existential optics}}\end{center}
+
+** (co)Ends
+:PROPERTIES:
+:BEAMER_OPT: fragile
+:END:
+
+# I am going to go a bit fast here. Ends can be defined as equalizing
+# the action on both sides of a profunctors; and coends are
+# coequalizing that same action.
+
+footfullcite:loregian15
+
+/*Ends*/ and /*Coends*/  over a profunctor $p \colon \mathbf{C}^{op} \times \mathbf{C} \to \mathbf{Sets}$ are special kinds of (co)limits ,
+(co)equalizing its right and left mapping.
+\[\begin{tikzcd}
+{\displaystyle \int_{x \in \mathbf{C}} p(x,x)} \rar &
+{\displaystyle \prod_{x \in \mathbf{C}} p(x,x)} \rar[yshift=-0.6ex, swap]{p(f, \mathrm{id} )}\rar[yshift=0.6ex]{p( \mathrm{id} , f)} &
+{\displaystyle \prod_{f \colon a \to b} p(a,b)}
+\end{tikzcd}\]
+\[\begin{tikzcd}
+{\displaystyle \bigsqcup_{f \colon b \to a} p(a,b)} \rar[yshift=-0.6ex, swap]{p(f, \mathrm{id} )}\rar[yshift=0.6ex]{p( \mathrm{id} , f)} &
+{\displaystyle \bigsqcup_{x \in \mathbf{C}} p(x,x)} \rar & 
+{\displaystyle \int^{x \in \mathbf{C}} p(x,x)}  &
+\end{tikzcd}\]
+Intuitively, a /natural/ universal quantifier (ends) and existential
+quantifier (coends).
+
+** (Co)end calculus
+# All our proofs here will be particular cases of the Yoneda lemma; so
+# that is the result we want to write in terms of coends.
+
+# Natural transformations are ends, and naturality is precisely the
+# coherence we are imposing on the end.
+
+Natural transformations can be rewritten in terms of ends.
+For any $F,G \colon \mathbf{C} \to \mathbf{D}$,
+\[
+\mathrm{Nat}(F,G) = \int_{x \in \mathbf{C}} \mathbf{D} (Fx , Gx).
+\]
+
+# And Yoneda lemma has then a very nice formulation.  It allows us to
+# perform an integration.  In some sense, is like the hom-functor is a
+# Dirac's delta and, when integrating, it is like evaluating on the
+# only point where it is non-zero.
+
+We can compute (co)ends using the *Yoneda lemma*.
+#+latex: \only<1>{
+\[\begin{aligned}
+\int_{x \in \mathbf{C}} \mathbf{Sets}(\mathbf{C}(x,a) , Gx)  &\cong Ga,\\
+\qquad\qquad
+\int^{x \in \mathbf{C}} Fx \times \mathbf{C}(a , x) &\cong Fa.
+\end{aligned}\]
+#+latex: }\only<2>{
+\[\begin{aligned}
+\int_{x \in \mathbf{C}} \mathbf{Sets}(\cancelto[red]{\mathbf{C}(x,a)}{x=a} , Gx) & \cong Ga,\\
+\qquad\qquad
+\int^{x \in \mathbf{C}} Fx \times \cancelto[red]{\mathbf{C}(a , x)}{x=a} &\cong Fa.
+\end{aligned}\]
+#+latex: }
+Continuity of the hom functor takes the following form.
+\begin{align*}
+\D \left( \int^{c \in \C} p(c,c) , d \right) &\cong
+\int_{c \in \C} \D(p(c,c), d),\\
+\D \left( d, \int_{c \in \C} p(c,c) \right) &\cong
+\int_{c \in \C} \D(d, p(c,c)).
+\end{align*}
+
+** A definition of "optic"
+# How are we going to use it?  We will write all our optics as
+# particular cases of Coends.
+
+# An action of a monoidal category into a category is just a monoidal
+# functor from M to the category of endofunctors in C, considered with
+# composition as the monoidal product.
+
+# For each of these actions, we can define a category of optics, where
+# objects are pairs and morphisms are of this form:  there exists some
+# m in M such that we can go from s to m acting on a, but also go back
+# from m acting on b to t.
+
+#+attr_latex: :options [Milewski, Boisseau/Gibbons, Riley, generalized]
+#+begin_definition
+Fix a monoidal category $\mathbf{M}$ with a strong monoidal functor
+$(\underline{\phantom{a}}) \colon \mathbf{M} \to [ \mathbf{C}, \mathbf{C}]$. Let $s,t,a,b \in \mathbf{C}$; 
+an *optic* from $(s,t)$ with /focus/ on $(a,b)$ is an element of the following set.
+\[\mathbf{Optic}
+\left( \begin{pmatrix} a \\ b \end{pmatrix}, \begin{pmatrix} s \\ t 
+\end{pmatrix} \right) = 
+\int^{m \in \mathbf{M}}
+\C( s , \underline{m} a) \times
+\C(\underline{m} b , t). \]
+#+end_definition
+
+*Intuition:* The optic splits into some focus $a$ and some /context/ $m$. We cannot
+access that context, but we can use it to update.
+
+# This is called the /existential form/ of the optic. 
+# Let's justify this is a good definition for an optic.
+
+** Lenses are optics
+# This equivalence is basically to say that Yoneda makes the two
+# representations equal.
+#+latex_header: \newtheorem{proposition}[theorem]{Proposition}
+#+attr_latex: :options [from Milewski, 2017]
+#+begin_proposition
+Lenses are optics for the product.
+\[\begin{pmatrix}\includegraphics[width=0.4\linewidth]{./images/lens-wn.png}\end{pmatrix}
+\cong
+\begin{pmatrix}\includegraphics[width=0.4\linewidth]{./images/lens-ex-wn.png}\end{pmatrix}\]
+#+end_proposition
+
+/Proof./
+#+latex: \only<1>{
+\[\begin{aligned} 
+\int^{c \in \mathbf{Sets}} \Sets(s , c \times a) \times \mathbf{Sets}(c \times b , t) & \cong & \quad\mbox{(\textit{ Product })} \\ 
+\int^{c \in \mathbf{Sets}} \Sets(s , c) \times \mathbf{Sets}(s , a) \times \mathbf{Sets}(c \times b , t) & \cong & \quad\mbox{(\textit{ Yoneda })} \\
+\mathbf{Sets}(s , a) \times \Sets(s \times b , t)  
+\end{aligned}\]
+#+latex: }\only<2>{
+\[\begin{aligned} 
+\int^{c \in \mathbf{Sets}} \mathbf{Sets}(s , c \times a) \times \mathbf{Sets}(c \times b , t) & \cong & \quad\mbox{(\textit{ Product })} \\ 
+\int^{c \in \mathbf{Sets}} \cancelto[red]{\Sets(s , c)}{c = s} \times \mathbf{Sets}(s , a) \times \mathbf{Sets}(c \times b , t) & \cong & \quad\mbox{(\textit{ Yoneda })} \\
+\mathbf{Sets}(s , a) \times \mathbf{Sets}(s \times b , t)  
+\end{aligned}\]
+#+latex: }
+
+** Prisms are optics
+:PROPERTIES:
+:BEAMER_OPT: fragile
+:END:
+# And we can also get prisms.  This derivation is described both by
+# Milewski and then by Boisseau-Gibbons.
+
+#+attr_latex: :options [Milewski, 2017]
+#+begin_proposition
+Dually, prisms are optics for the coproduct.
+\[\begin{pmatrix}\includegraphics[width=0.4\linewidth]{./images/prism-wn.png}\end{pmatrix}
+\cong
+\begin{pmatrix}\includegraphics[width=0.4\linewidth]{./images/prism-ex-wn.png}\end{pmatrix}\]
+#+end_proposition
+
+/Proof./
+#+latex: \only<1>{
+\[\begin{aligned}
+\int^{m \in \mathbf{Sets}} \mathbf{Sets}(s , m + a) \times \mathbf{Sets}(m + b , t) 
+&\cong \quad\mbox{(\textit{ Coproduct })} \\
+\int^{m \in \mathbf{Sets}} \mathbf{Sets}(s , m + a) \times \Sets(m , t) \times \mathbf{Sets}(b , t)
+&\cong \quad\mbox{(\textit{ Yoneda })} \\
+\mathbf{Sets}(s , t + a) \times \mathbf{Sets}(b , t)
+\end{aligned}\]
+#+latex: }\only<2>{
+\[\begin{aligned}
+\int^{m \in \mathbf{Sets}} \mathbf{Sets}(s , m + a) \times \mathbf{Sets}(m + b , t) 
+&\cong \quad\mbox{(\textit{ Coproduct })} \\
+\int^{m \in \mathbf{Sets}} \mathbf{Sets}(s , m + a) \times \cancelto[red]{\mathbf{Sets}(m , t)}{m = t} \times \mathbf{Sets}(b , t)
+&\cong \quad\mbox{(\textit{ Yoneda })} \\
+\mathbf{Sets}(s , t + a) \times \mathbf{Sets}(b , t)
+\end{aligned}\]
+#+latex: }
+
+** Traversals are optics
+#+begin_theorem
+Traversals are optics for the action of *polynomial functors* $\sum\nolimits_n c_n \times \square^n$.
+\[\begin{pmatrix}\includegraphics[width=0.4\linewidth]{./images/traversal-wn.png}\end{pmatrix}
+\cong
+\begin{pmatrix}\includegraphics[width=0.4\linewidth]{./images/traversal-ex-wn.png}\end{pmatrix}\]
+#+end_theorem
+That is,
+\[\int^{c} 
+\mathbf{Sets} \left(  s , \Sigma\nolimits_n (c_n \times a^n) \right) \times
+ \mathbf{Sets}\left(\Sigma\nolimits_n (c_n \times b^n) , t\right)
+\cong
+\mathbf{Sets} (s , \Sigma\nolimits_n a^n \times (b^n \to t)).\]
+
+** Traversals are optics: proof
+# To fit the traversal into this pattern was left as an open problem
+# by Milewski and then an inductive proof is given in
+# Boisseau-Gibbons.  That proof uses Traversable functors, but we
+# propose a derivation using Yoneda and in terms of polynomial
+# functors.
+
+Again by the Yoneda lemma, this time for functors $c \colon \mathbb{N} \to \mathbf{Sets}$.
+
+\[\begin{aligned}
+\int^{c} \mathbf{Sets} \left(  s , \sum\nolimits_{n } c_n \times a^n \right) \times \mathbf{Sets}\left( \sum\nolimits_{n } c_n \times b^n , t\right) 
+&\cong\quad\mbox{\textit{( cocontinuity )}}\\
+\int^{c} \mathbf{Sets} \left(  s , \sum\nolimits_{n } c_n \times a^n \right) \times \prod_{n } \mathbf{Sets}\left( c_n \times b^n , t\right) 
+&\cong\quad\mbox{\textit{( prod/exp adjunction )}}\\
+\int^{c} \mathbf{Sets} \left(  s , \sum\nolimits_{n } c_n \times a^n \right) \times \prod_{n } \mathbf{Sets}\left( c_n , b^n \to t\right) 
+&\cong\quad\mbox{\textit{( natural transf. as an end )}}\\
+\int^{c} \mathbf{Sets} (  s , \sum\nolimits_{n } c_n \times a^n ) \times 
+\only<1>{[ \mathbb{N} , \mathbf{Sets} ] \left( c_{\square} , b^{\square} \to t \right)}
+\only<2>{\cancelto[red]{[ \mathbb{N} , \mathbf{Sets} ] \left( c_{\square} , b^{\square} \to t \right)}{c = b^{\square} \to t}}
+&\cong\quad\mbox{\textit{( Yoneda lemma )}}\\
+\mathbf{Sets} \left(  s , \sum\nolimits_{n } a^n \times (b^n \to t) \right)
+\end{aligned}\]
+
+
+Programming libraries use *traversable* functors to describe traversals.
+Polynomials are related to these /traversable/ functors by a result of
+Jaskelioff/O'Connor.
+
+** Unification of optics
+# We can get the majority of the optics that are interesting in
+# programming this way, and derive their concrete representations from
+# some action associated to them.
+
+All the usual optics are of this form.  Some new ones arise naturally.
+
+|------------------+-----------------------------------------------------+-------------------------|
+| Name             | Concrete                                            | Action                  |
+|------------------+-----------------------------------------------------+-------------------------|
+| Adapter          | $\small{(s \to a) \times (b \to t)               }$ | Identity                |
+| Lens             | $\small{(s \to a) \times (b \times s \to t)      }$ | Product                 |
+| Prism            | $\small{(s \to t + a) \times (b \to t)           }$ | Coproduct               |
+| Grate            | $\small{((s \to a) \to b) \to t                  }$ | Exponential             |
+| Affine Traversal | $\small{s \to t + a \times (b \to t)             }$ | Product and coproduct   |
+| Glass            | $\small{((s \to a) \to b) \to s \to t        }$     | Product and exponential |
+| Traversal        | $\small{s \to \Sigma n . a^n \times (b^n \to t)  }$ | Polynomials             |
+| Setter           | $\small{(a \to b) \to (s \to t)                  }$ | Any functor             |
+|------------------+-----------------------------------------------------+-------------------------|
+
+** TODO Generalized lenses by David Myers
+
+* Profunctor representation theorem
+** Profunctor representation
+
+# We are going to use some results from the theory of (co)ends to give
+# a unified representation of our optics.
+
+#+latex: \begin{center}{\huge\textbf{Part 3: the Profunctor representation theorem}}\end{center}
+
+For an action $(\underline{\phantom{a}}) \colon \M \to [\C, \C]$.
+
+** Tambara modules
+#+attr_latex: :options [from Pastro/Street]
+#+begin_definition
+A *Tambara module* is a profunctor $p$ together with a family of morphisms
+satisfying some coherence conditions.
+\[p(a,b) \to p(\underline{m}a, \underline{m}b),\qquad m \in \M.\]
+#+end_definition
+
+Pastro and Street showed they are *coalgebras* for a comonad.
+\[\Theta(p)(a,b) = \int\nolimits_{m \in \M} p(\underline{m}a, \underline{m}b).\]
+Or equivalently, *algebras* for its left adjoint monad $\Psi \dashv \Theta$.
+\[\Psi q(x,y) = \int^{m \in \M}\int^{a,b \in \C}
+q(a,b) \times \C(\underline{m}a,x) \times \C(y,\underline{m}b)\]
+We call $\hirata$ to the Eilenberg-Moore category for the monad, or
+equivalently, for the adjoint comonad.
+
+** Profunctor representation
+#+attr_latex: :options [Boisseau/Gibbons]
+#+begin_theorem
+<<th:profunctorrepresentation>>
+Optics are functions parametric over Tambara modules.
+\[\Optic((a,b),(s,t)) \cong
+\int_{p \in \mathrm{Tmb}} \Sets(Up(a,b) , Up(s,t))\]
+In fact, $\Optic$ is the full subcategory on representable functors
+of the Kleisli category for $\Psi$.
+#+end_theorem
+
+** Profunctor representation: proof
+# TODO: call h to the hom functor
+\begin{align*}
+\int_{p \in \hirata} \Sets(p(a,b), p(s,t)) & 
+\cong \quad \mbox{(Yoneda lemma)} \\
+\int_{p \in \hirata} \Sets\left(\mathrm{Nat}(\hirayo(a,b), Up) , Up(s,t) \right) &
+\cong \quad \mbox{(Free Tambara)} \\
+\int_{p \in \hirata} \Sets\left( \mathrm{Tmb}(\Psi\hirayo(a,b), p) , Up(s,t) \right) &
+\cong \quad \mbox{(Yoneda lemma)} \\
+\Psi\hirayo(a,b)(s,t) &
+\cong \quad \mbox{(Definition of $\Psi$)} \\
+\int^{m \in \M} \int^{x,y\in\C} \C(s,\mact x) \times \C(\mact y, t) \times \hirayo(a,b)(x,y) &
+\cong \quad \mbox{(Yoneda lemma)} \\
+\int^{m \in \M} \C(s,\mact a) \times \C(\mact b, t) & \qedhere\\
+\end{align*}
+
+Because $\Psi\hirayo(a,b)(s,t) \cong \Nat(\hirayo (s,t), \Psi\hirayo (a,b))$, the category of optics is
+the full subcategory on representable functors of the Kleisli category for
+$\Psi$.
+
+* Profunctor representation: Prof version
+** Profunctor representation
+
+# We are going to use some results from the theory of (co)ends to give
+# a unified representation of our optics.
+
+#+latex: \begin{center}{\huge\textbf{Part 3: the Profunctor representation theorem}}\end{center}
+
+For an action $(\underline{\phantom{a}}) \colon \M \to [\C, \C]$.
+
+*(This time in Prof!)*
+
+** The bicategory Prof
+The bicategory $\Prof$ has
+
+ * 0-cells are (small) categories $\mathbf{A}, \mathbf{B}, \C,\D,\dots$, as in $\mathbf{Cat}$;
+ * 1-cells $\C \nrightarrow \D$ are profunctors $p \colon \C^{op} \times \D \to \Sets$,
+ * 2-cells $p \tonat q$ are natural transformations.
+
+Two profunctors $p \colon \C \nrightarrow \D$ and $q \colon \D \nrightarrow \mathbf{E}$ are composed into
+$(q \diamond p) \colon \C \nrightarrow \mathbf{E}$ with the following (co)end.
+\[\begin{matrix}
+(q \diamond p)(c,e) &=& {\displaystyle\int^{d \in \mathbf{D}}}& p(c,d)& \times& q(d,e). \\
+\only<2>{(Q \circ P)(c,e)} &\only<2>{\iff}& \only<2>{\exists d \in \D.} & \only<2>{P(c,d)} & \only<2>{\wedge} & \only<2>{Q(d,e).}
+\end{matrix}\]
+Yoneda lemma makes the hom profunctor $\hirayo \colon \C^{op} \times \C \to \Sets$ the identity.
+
+** Promonads and the optics category
+A *promonad* $\psi \in [ \mathbf{A}^{op} \times \mathbf{B} , \mathbf{Sets}]$ is a monoid in the bicategory of profunctors.
+
+#+ATTR_LATEX: :options [Kleisli construction in \textbf{Prof}, e.g. in Pastro/Street]
+#+begin_lemma
+The *Kleisli object* for the promonad, $\mathrm{Kl}(\psi)$, is a category with the same
+objects, but hom-sets given by the promonad, $\mathrm{Kl}(\psi)(a,b) = \psi(a,b)$.
+#+end_lemma
+
+For some fixed kind of optic, we can create a category with the same objects as
+$\mathbf{C}^{op} \times \mathbf{C}$, but where morphisms are optics of that kind.
+\[
+\psi( (s,t) , (a,b) ) = \int^{m \in \mathbf{M}} \mathbf{C}(s , \underline{m} a) \times \mathbf{D}(\underline{m} b , t)
+\]
+That is, $\mathbf{Optic} := \mathrm{Kl}(\psi)$.
+
+** Kleisli object
+:PROPERTIES:
+:BEAMER_OPT: fragile
+:END:
+
+\footnote{I am using Dan Marsden's macros for diagrams}
+
+\begin{center}
+\begin{gathered}
+\begin{tikzpicture}[scale=0.5]
+\path coordinate[dot, label=left:$h$] (a)
+ +(0,1) coordinate[label=above:$F$] (t)
+ +(0,-3) coordinate[label=below:$F$] (bl)
+ ++(2,-1) coordinate[dot, label=below:$\mu$] 
+ (mu) ++(-1,-1) coordinate[label=left:$$] (sigma1) ++(0,-1) coordinate[label=below:$\Psi$] (bm)
+ (mu) ++(1,-1) coordinate[label=right:$$] (sigma2) ++(0,-1) coordinate[label=below:$\Psi$] (br) ++(0.5,3) coordinate[label=above:$\mathbf{C}^{op} \times \mathbf{C}$];
+\draw (bl) -- (a) -- (t)
+ (mu) to[out=90, in=0] (a)
+ (bm) -- (sigma1) to[out=90, in=180] (mu.west) -- (mu.east) to[out=0, in=90] (sigma2) -- (br);
+\begin{pgfonlayer}{background}
+\fill[catterm] ($(t) + (-1,0)$) rectangle (bl);
+\fill[catc] (t) rectangle ($(br) + (2,0)$);
+\end{pgfonlayer}
+\end{tikzpicture}
+\end{gathered} $=$
+\begin{gathered}
+\begin{tikzpicture}[scale=0.5]
+\path coordinate[dot, label=left:$\alpha$] (a)
+ +(0,1) coordinate[label=above:$i$] (t)
+ +(0,-3) coordinate[label=below:$i$] (bl)
+ ++(2,-1) coordinate[dot, label=below:$\mu$] 
+ (mu) ++(-1,-1) coordinate[label=left:$$] (sigma1) ++(0,-1) coordinate[label=below:$\Psi$] (bm)
+ (mu) ++(1,-1) coordinate[label=right:$$] (sigma2) ++(0,-1) coordinate[label=below:$\Psi$] (br) 
+ ++(0.5,3) coordinate[label=above:$\mathbf{C}^{op} \times \mathbf{C}$]
+ ++(-5,-2) coordinate[label=above:$\mathbf{Optic}$];
+\draw (bl) -- (a) -- (t)
+ (mu) to[out=90, in=0] (a)
+ (bm) -- (sigma1) to[out=90, in=180] (mu.west) -- (mu.east) to[out=0, in=90] (sigma2) -- (br);
+\draw (-3,1) -- (-3,-3) coordinate[label=below:$\exists! G_{h}$];
+\begin{pgfonlayer}{background}
+\fill[color={green!20}] ($(t) + (-3,0)$) rectangle (bl);
+\fill[catc] (t) rectangle ($(br) + (2,0)$);
+\fill[catterm] (-3,1) rectangle (-4,-3);
+\end{pgfonlayer}
+\end{tikzpicture}
+\end{gathered}
+\end{center}
+
+
+#+attr_latex: :options [Pastro/Street]
+#+begin_theorem
+Functors $[ \mathbf{Optic} , \mathbf{Set} ]$ are equivalent to right modules on the terminal object for
+the promonad $\mathrm{Mod}(\psi)$, which are algebras for an associated monad.
+#+end_theorem
+
+It follows from the universal property of the Kleisli object that
+\[\mathbf{Cat}( \mathbf{Optic} , \mathbf{Set}) \cong
+\mathbf{Prof}(1, \mathbf{Optic}) \cong
+\mathbf{Mod}(\psi).\]
+
+** Profunctor representation theorem
+#+attr_latex: :options [Riley 2018, Boisseau/Gibbons 2018, different proof technique]
+#+begin_theorem
+Optics given by $\psi$ correspond to parametric functions over
+profunctors that have (pro)module structure over $\psi$.
+\[\mathbf{Optic}((a,b),(s,t))
+\cong
+\int_{p \in \mathbf{Mod}(\psi)} p(a,b) \to p(s,t)\]
+#+end_theorem
+
+/Proof./
+\[\begin{aligned}
+\int_{p \in \mathbf{Mod}(\psi)} p(a,b) \to p(s,t) &\cong
+\qquad\mbox{\textit{( lemma )}}\\ 
+\int_{p \in [ \mathbf{Optic} , \mathbf{Sets} ]} p(a,b) \to p(s,t) &\cong
+\qquad\mbox{\textit{( by definition )}}\\ 
+ \mathrm{Nat}(-(a,b) , -(s,t)) &\cong
+\qquad\mbox{\textit{( Yoneda embedding )}}\\ 
+ \mathrm{Nat}(  \mathrm{Nat}(\mathbf{Optic}((a,b) , \square) , -)  ,  \mathrm{Nat}(\mathbf{Optic} ((s,t), \square), -)) &\cong
+\qquad\mbox{\textit{( Yoneda embedding )}}\\
+ \mathrm{Nat}(  \mathbf{Optic}((a,b) , \square), \mathbf{Optic} ((s,t), \square)) &\cong
+\qquad\mbox{\textit{( Yoneda embedding )}}\\
+\mathbf{Optic}((s,t),(a,b)) &\phantom{\cong}
+\end{aligned}
+\]
+
+** Summary
+
+ * $\mathbf{Optic}$ is the full subcategory on representable functors
+   of a Kleisli category.
+
+   * *In Prof, it is a Kleisli object.*
+
+ * Tambara modules are algebras for the monad.
+
+   * *In Prof, they are (pro)algebras for the promonad.*
+     *It follows that $[ \mathbf{Optic} , \Sets ] \cong \hirata$.*
+
+* Composition and examples
+
+** TODO Distributive laws
+** Composition of optics
+
+# We are going to use some results from the theory of (co)ends to give
+# a unified representation of our optics.
+
+#+latex: \begin{center}{\huge\textbf{Part 4: Composition of optics}}\end{center}
+
+** How Haskell composes optics
+:PROPERTIES:
+:BEAMER_OPT: fragile
+:END:
+
+Given two optics for two actions $\alpha \colon \M \to [\C,\C]$ and $\beta \colon \N \to [\C,\C]$.
+\[\int_{p \in \hirata(\alpha)} \Sets(p(a,b), p(s,t)),\qquad
+\int_{q \in \hirata(\beta)} \Sets(q(x,y), q(a,b)).\]
+We can /compose/ them into a function polymorphic over profunctors
+that are algebras for both monads.
+\[
+\int_{(p,p) \in \hirata(\alpha) \times_{\Prof} \hirata(\beta)} \Sets(p(a,b), p(s,t))
+\]
+In other words, we consider the following pullback.
+\[\begin{tikzcd}
+\hirata(\alpha) \times_{\Prof} \hirata( \beta ) \dar[swap]{\pi}\rar{\pi}& \hirata(\alpha) \dar{U}\\
+\hirata( \beta ) \rar{U} & \Prof
+\end{tikzcd}\]
+
+** The coproduct comonad
+#+begin_lemma
+A pair of Tambara modules $\hirata(\alpha)$ and $\hirata(\beta)$ over
+the same profunctor $p$ is the same as a Tambara modules $\hirata(\alpha + \beta)$ for
+the coproduct action $\alpha + \beta \colon \M + \N \to [\C,\C]$.
+#+end_lemma
+
+For instance, Haskell would compose lenses and prisms
+into optics for an action of the following form.
+\[
+a \mapsto c_1 + d_1 \times (c_2 + d_2 \times \dots a)
+\]
+This is usually /projected/ into an action of the following
+form $a \mapsto c + d \times a$ (replete image of the action) that gives an optic called *affine traversal*.
+
+** Lattice of actions
+:PROPERTIES:
+:BEAMER_OPT: fragile
+:END:
+
+With some notion of subcategory of endofunctors (replete subcategories and
+pseudomonic functors),  we can limit actions to submonoidal categories 
+of $[\C,\C]$.
+#+beamer: {\small
+\[\begin{tikzcd}
+& \mathrm{Setter}_{[ \mathbf{C} , \mathbf{C} ]} & \\
+& & \mathrm{Traversal}_{\mathrm{(\Sigma)}} \ular \\
+\mathrm{Glass}_{(\to,\times)} \ar{uur} & & \mathrm{Affine}_{(\times,+)} \uar \\
+\mathrm{Grate}_{(\to)} \uar & \mathrm{Lens}_{(\times)} \urar \ular& \mathrm{Prism}_{(+)} \uar \\
+& \mathrm{Adapter}_{(id)} \uar\ular\urar &
+\end{tikzcd}\]
+#+beamer: }
+
+* Kaleidoscopes: a case study
+** Kaleidoscopes: a case study
+
+# We will create a new optic.
+
+#+latex: \begin{center}{\huge\textbf{Part 5: A case study}}\end{center}
+
+** Applicative functors
+Let $(\M,\otimes, i)$ be a monoidal category. $[\M , \Sets]$ is monoidal with
+*Day convolution*.
+\[
+(F \ast G)(m) = \int^{x,y \in \M} \M(x \otimes y , m) \times F(x) \times G(y)
+\]
+Monoids for Day convolution are *lax monoidal functors*.  We can compute
+free lax monoidal functors as we compute free monoids.
+\[
+F^{\ast} = \mathrm{id} + F + F \ast F + F \ast F \ast F + \dots
+\]
+Lax monoidal functors for $\Sets$ are called *applicative functors*
+[McBride/Paterson].
+
+** The optic for applicative functors
+\begin{align*}
+& \int^{F \in \mathbf{App}} \Sets(s, Fa) \times \Sets(Fb,t)
+\\ \cong & \qquad\mbox{{(Yoneda lemma)}} \\
+& \int^{F \in \mathbf{App}} \mathrm{Nat}\left(  s \times (a \to (-)) , F \right) \times \Sets(Fb,t) 
+\\ \cong & \qquad\mbox{(Free-forgetful adjunction for applicative functors)} \\
+& \int^{F \in \mathbf{App}} \mathbf{App}\left(  \sum_n s^n \times \left(  a^n \to (-) \right) , F \right) \times \Sets(Fb,t) 
+\\ \cong & \qquad\mbox{(Yoneda lemma)} \\
+& \Sets \left(  \sum_n s^n \times (a^n \to b),t \right)
+\\ \cong & \qquad\mbox{(Continuity)} \\
+& \prod_n \Sets \left(   s^n \times (a^n \to b),t \right).
+\end{align*}
+
+/This can be done in general for any functors that can be generated (co)freely./
+
+** Kaleidoscopes
+*Kaleidoscopes* are optics for the evaluation of applicative functors , $\mathbf{App} \to [ \Sets , \Sets ]$.
+They have a concrete description
+\[ \mathbf{Kaleidoscope}
+\left( \begin{pmatrix} a \\ b \end{pmatrix}, \begin{pmatrix} s \\ t \end{pmatrix} \right) =
+ \prod_n \Sets\left(s^n \times (a^n \to b),t \right).
+\]
+
+#+name: kaleidoscope
+#+attr_latex: :width 7cm
+[[./images/kaleidoscope.png]]
+
+** List-lenses
+Kaleidoscopes cannot be composed with lenses because $(c \times -)$ is
+not lax monoidal.  It is lax monoidal when $c$ is a monoid. We can
+ask the residual to be a monoid.
+\begin{align*}
+& \int^{c \in \mbox{Mon}} \C(s, c \times a) \times \C(c \times b,t) & \cong & \qquad\mbox{{(Product)}} \\
+& \int^{c \in \mbox{Mon}} \C(s, c) \times \C(s, a) \times \C(c \times b,t) 
+& \cong & \qquad\mbox{{(Free monoid)}} \\
+& \int^{c \in \mbox{Mon}} \mathbf{Mon}(s^{\ast}, c) \times \C(s, a) \times \C(c \times b,t) 
+& \cong & \qquad\mbox{{(Yoneda lemma)}} \\
+& \C(s, a) \times \C(s^{\ast} \times b,t) & \qedhere \\
+\end{align*}
+
+
+# This could be done in general for any monad.
+
+** List-lenses
+*List lenses* are optics for the product by a monoid , $(\times) \colon \mathbf{Mon} \times \Sets \to \Sets$.
+They have a concrete description
+\[ \mathbf{ListLens}
+\left( \begin{pmatrix} a \\ b \end{pmatrix}, \begin{pmatrix} s \\ t \end{pmatrix} \right) =
+\Sets(s,a) \times \Sets(s^\ast \times b, t)
+\]
+
+#+name: list-lens
+#+attr_latex: :width 5cm
+[[./images/listlenses.png]]
+
+*List-lenses (unlike general lenses) compose with Kaleidoscopes!*
+** Example
+# *Haskell*: with (too many) compiler extensions we can implement
+# the profunctor representation theorem in general; and then just
+# define Kaleidoscopes.
+
+Take the *iris* dataset. Each entry is a $\mathbf{Flower}$ given by a species and four real
+numbers $\mathbf{Flower} = \mathbf{Species} \times \mathbb{R}_{+}^4$.  
+#+BEGIN_SRC c++
+    5.1,3.5,1.4,0.2,Iris-setosa
+    4.9,3.0,1.4,0.2,Iris-setosa
+    4.7,3.2,1.3,0.2,Iris-setosa
+    4.6,3.1,1.5,0.2,Iris-setosa
+    5.0,3.6,1.4,0.2,Iris-setosa
+    ...
+#+END_SRC
+
+We define a *list-lens* that implements some learning algorithm.
+\[
+\begin{matrix}\begin{aligned}
+\mathbf{Flower} &\to \mathbb{R}_+^4 \\
+\mathbf{Flower}^{\ast} \times \mathbb{R}_+^4 &\to  \mathbf{Flower}
+\end{aligned} &\quad &
+\vcenter{\hbox{\includegraphics[width=0.2\linewidth]{./images/listlenses.png}}}
+\end{matrix}\]
+We define a *Kaleidoscope* that takes an aggregating function on $\mathbb{R}_+$ 
+and induces a componentwise aggregating function on the 4-tuples $\mathbb{R}^4_+$.
+\[\begin{matrix}\prod_{n \in \mathbb{N}} \left(  \left( \mathbb{R}_+ \right)^n \to \mathbb{R}_+ \right) 
+\to \left( \left( \mathbb{R}^4_+ \right)^n \to \mathbb{R}^4_+ \right) &\quad &
+\vcenter{\hbox{\includegraphics[width=0.2\linewidth]{./images/kaleidoscope.png}}}
+\end{matrix}\]
+
+** Example
+List-lenses are, in particular, *lenses*; we can use them to /view/ the
+measurements of the first element of our dataset.
+
+#+BEGIN_SRC haskell
+  (iris !! 1)^.measurements
+
+  ---- Output ----
+     Sepal length: 4.9
+     Sepal width:  3.0
+     Petal length: 1.4
+     Petal width:  0.2
+#+END_SRC
+
+** Example
+They are more abstract than a lens in the sense that they can be used
+to classify some measurements into a new species taking into account
+all the examples of the dataset.
+
+#+BEGIN_SRC haskell
+  iris ?. measurements (Measurements 4.8 3.1 1.5 0.1)
+
+  ---- Output ----
+  Flower: 
+      Sepal length: 4.8
+      Sepal width:  3.1
+      Petal length: 1.5
+      Petal width:  0.1
+      Species:      Iris setosa  -- <<<< Clasifies the species.
+#+END_SRC
+
+** Example
+List-lenses can be composed with kaleidoscopes.   The composition
+takes an aggregation function and classifies the result
+
+#+BEGIN_SRC haskell
+  iris >- measurements.aggregateWith mean
+
+  ---- Output ----
+  Flower: 
+      Sepal length: 5.843
+      Sepal width:  3.054
+      Petal length: 3.758
+      Petal width:  1.198
+      Species:      Iris versicolor
+#+END_SRC
+
+* Summary and further work
+** Summary and further work
+
+# We are going to use some results from the theory of (co)ends to give
+# a unified representation of our optics.
+
+#+latex: \begin{center}{\huge\textbf{Part 4: Summary and further work}}\end{center}
+
+** Summary
+
+ * *Optics:* a zoo of accessors used by programmers /[Kmett, lens library, 2012]/.
+   * *Concrete representation*: each one is described by some functions.
+   * *Existential representation*: unified definition of optics as a coend.
+   * Going from concrete to existential cannot be done in general, we look
+     for some way of eliminating the coend.
+
+ * *Profunctor optics:* for monoidal actions /[Pastro/Street, 2008]/, /[Milewski, 2017]/
+   and general actions /[Boisseau/Gibbons, 2018]/.
+   * *Profunctor representation*: can be composed easily.
+   * Going from *existential* to *profunctor* and back is done in general.
+
+ * *Composition of optics:* what do we get when composing two optics.
+   * Distributive laws is the obvious choice.
+   * In Haskell, we consider coproducts of monads.
+   * We get a lattice of optics.
+
+
+** Related and further work
+
+ * *Lawful optics*. Studied by /[Riley, 2018]/.
+   * Programmers use *lawful optics*, optics with certain properties.
+
+ * *Generalizations:* in which other settings do we get useful results?
+   * Enrichments over a cartesian Benabou cosmos ${\cal{V}}$.
+   * We have extended the theorems for /mixed optics/.
+
+ * *Implementation:* developing libraries of optics.
+   * A concise library in *Haskell*. [[https://github.com/mroman42/vitrea/]]
+   * Derivations in *Agda* / *Idris* allow us to extract translation
+     algorithms for optics.  Everything we have been doing is
+     constructive.
+
+#+attr_latex: :width 11cm
+[[./images/agdalens.jpg]]
+
+** Some literature
+#+beamer: \textbf{Oles, 1982.}
+/[[https://www.cs.cmu.edu/afs/cs.cmu.edu/project/fox-19/member/jcr/www/FrankOlesThesis.pdf][A category theoretic approach to the semantics of programming
+languages (PhD thesis).]]/ Defines lenses for the first time.
+
+#+beamer: \textbf{Kmett, 2012.}
+/[[https://hackage.haskell.org/package/lens-0.1][Lens library]]./ Implements optics in Haskell.
+
+#+beamer: \textbf{Pickerings/Gibbons/Wu, 2016.}
+/[[http://www.cs.ox.ac.uk/people/jeremy.gibbons/publications/poptics.pdf][Profunctor optics: modular data accessors]]/. Derives lenses, prisms,
+adapters and traversals in Haskell.
+
+#+beamer: \textbf{Milewski, 2017.}
+/[[https://bartoszmilewski.com/2017/07/07/profunctor-optics-the-categorical-view/][Profunctor optics, the categorical view.]]/ Tambara modules for lenses
+and prisms.
+
+#+beamer: \textbf{Boisseau/Gibbons, 2018.}
+/[[https://www.cs.ox.ac.uk/jeremy.gibbons/publications/proyo.pdf][What you needa know about Yoneda]]/.  General definition of optics and a
+general profunctor representation theorem.  Traversal as the optic for
+traversables.
+
+#+beamer: \textbf{Riley, 2018.}
+/[[https://arxiv.org/abs/1809.00738][Categories of optics]]/.  General framework for obtaining laws for the
+optics.
+
+* References                                                                              :noexport:
+bibliographystyle:alpha
+bibliography:optics.bib
+
+* Discarded slides                                                                        :noexport:
+** TODO Actions of a monoidal category                                                   :noexport:
+:PROPERTIES:
+:BEAMER_OPT: fragile
+:END:
+#+beamer: \frametitle{Actions}
+#+beamer: \framesubtitle{of a monoidal category}
+
+An *action* of a monoidal category $(\mathbf{M}, i, \otimes)$ in an arbitrary category
+$\mathbf{C}$ is a functor $\oslash \colon \mathbf{M} \times \mathbf{C} \to \mathbf{C}$, such that for every $c \in \mathbf{C}$ we have
+$i \oslash c = c$ and $(a \otimes b) \oslash c = a \oslash (b \oslash c)$ plus some coherence conditions.
+
+ * We can also consider full sub-monoidal categories of endofunctors $[ \mathbf{C} , \mathbf{C} ]$.
+
+** TODO Status
+footfullcite:milewski17
+footfullcite:boisseau18
+footfullcite:pastro08
+
+Milewski and Boisseau-Gibbons show these equivalences follow from Yoneda
+lemma and relate them to the study of Tambara modules in Pastro-Street. 
+=Lenses= and =prisms= fit a common pattern, but other optics, such as =Traversal=
+do not fit this pattern.
+
+\[
+\left( \int_{p \in \Theta\mbox{-}\mathbf{coAlg}} p (a, b) \to p (s, t) \right)
+\cong
+\int^{m \in \mathbf{M}} \mathbf{C}(s , m \cdot a) \times \mathbf{C}(m \cdot b , t).
+\]
+We can get a general equation for optics, for any given action of a monoidal
+category into a category $(\cdot) \colon \mathbf{M} \to [ \mathbf{C} , \mathbf{C} ]$.
+
+** TODO Description using (co)ends
+We want to prove the equivalence between the
+*concrete* representation and the *profunctor* representation.
+We describe quantifiers and their naturality conditions as
+/*ends*/ and /*coends*/.
+
+\[
+\int_{p \in \mathbf{Cartesian}} \mathbf{Sets} (p(a,b) , p(s,t))
+\cong
+\mathbf{C}(s , a) \times \mathbf{C}(s \times b , t)
+\]
+
+Where $\mathbf{Cartesian}$ is a subcategory of $[ \mathbf{C}^{op} \times \mathbf{C} , \mathbf{Sets} ]$ with a
+family of morphisms $\alpha_{a,b,c} \colon p(a,b) \to p(c \times a , c \times b)$.
+
+** TODO Tambara modules
+#+beamer: \frametitle{Tambara modules}
+#+beamer: \framesubtitle{Profunctor description}
+
+From multiple applications of the Yoneda lemma, we get a description
+in terms of profunctors.
+\[
+\int^{m \in \mathbf{M}} \mathbf{C}(s , m \cdot a) \times \mathbf{C}(m \cdot b , t)
+\cong
+\int_{p \in \mathbf{Tamb}(M)} p (a, b) \to p (s, t).
+\]
+
+Where we are quantifying over the profunctors that preserve the
+the action. These are called *Tambara modules*.
+\[
+p (a , b) \to \int_{m \in \mathbf{M}} p(m \cdot a , m \cdot b)
+\]
+
+** TODO OLD Motivation: bidirectional data accessors                                     :noexport:
+:PROPERTIES:
+:BEAMER_OPT: fragile
+:END:
+#+beamer: \frametitle{Bidirectional data accessors}
+#+beamer: \framesubtitle{The motivation}
+
+#+beamer: {\small 
+
+In programming, we want to access fields of complex data structures.
+We use *data accessors* for this, that give us /getter/ and /setter/
+methods.
+
+#+BEGIN_SRC haskell
+  getPopulation : City -> List Person
+  setPopulation : City × List Person -> City
+  getId : Person -> ID
+  setId : Person × ID -> Person
+#+END_SRC
+
+/Problem:/ these are not compositional. It is not obvious how to create
+a function combining any two arbitrary accessors.
+
+#+BEGIN_SRC haskell
+  setAllIds : City × List ID -> City
+#+END_SRC
+
+The solution is to use *optics*!
+
+#+beamer: }
+
+# Cite: Modular data accessors.
+
+** TODO Composing optics
+#+beamer: \frametitle{Composing optics}
+#+beamer: \framesubtitle{Profunctor description}
+
+Profunctors let us compose different optics. Suppose we have two optics.
+\[
+\int_{p \in \mathbf{Tamb}(M)} p (a, b) \to p (s, t)
+\quad\mbox{ and }\quad
+\int_{q \in \mathbf{Tamb}(N)} q (x, y) \to q (a, b)
+\]
+Function composition gives us the following, which is again an optic.
+\[
+\int_{r \in \mathbf{Tamb}(M) \cap \mathbf{Tamb}(N)} r (x, y) \to r (s, t)
+\]
+
+** TODO Existential representation: prism
+** TODO Existential representation: lens
+footfullcite:milewski17
+footfullcite:pickering17
+
+# If we want to have a good definition, it should particularize into
+# lenses.  In fact, if we take the action given by the product, and
+# we apply Yoneda, we get a lens.
+
+The existential form particularizes in */lenses/* when we take the
+cartesian product $(\times) \colon \mathbf{Sets} \times \mathbf{Sets} \to \mathbf{Sets}$ 
+and we use the (co)end calculus.
+\[\begin{aligned}
+\int^{c \in \mathbf{Sets}} \mathbf{Sets}(s , c \times a) \times \mathbf{Sets}(c \times b , t) 
+&\cong \quad\mbox{(\textit{ Product })} \\
+\int^{c \in \mathbf{Sets}} \mathbf{Sets}(s , c) \times \mathbf{Sets}(s , a) \times \mathbf{Sets}(c \times b , t)
+&\cong \quad\mbox{(\textit{ Yoneda })} \\
+\mathbf{Sets}(s , a) \times \mathbf{Sets}(s \times b , t)
+\end{aligned}\]
+
+** TODO Current status
+
+ * We have a particular derivation of Traversals that fits the scheme
+   of the others.
+
+ * Lattice of optics in terms of actions.
+
+ * Constructing *new optics* by composing known ones.
+
+ * Formal proofs give useful programs.
+
+** TODO (Co)ends
+footfullcite:loregian15
+
+# Ends and coends are a kind of limits and colimits.  They are
+# computed over a profunctor and they are both the equalizer and
+# coequalizer of the left and right mopping of the profunctor.
+
+/*Ends*/ and /*Coends*/ are special kinds of (co)limits over a profunctor $p \colon \mathbf{C}^{op} \times \mathbf{C} \to \mathbf{Sets}$, 
+(co)equalizing its right and left mapping.
+
+\[\begin{tikzcd}
+{\displaystyle \int_{x \in \mathbf{C}} p(x,x)} \rar &
+{\displaystyle \prod_{x \in \mathbf{C}} p(x,x)} \rar[yshift=-0.6ex, swap]{p(f, \mathrm{id} )}\rar[yshift=0.6ex]{p( \mathrm{id} , f)} &
+{\displaystyle \prod_{f \colon a \to b} p(a,b)}
+\end{tikzcd}\]
+
+\[\begin{tikzcd}
+{\displaystyle \bigsqcup_{f \colon b \to a} p(a,b)} \rar[yshift=-0.6ex, swap]{p(f, \mathrm{id} )}\rar[yshift=0.6ex]{p( \mathrm{id} , f)} &
+{\displaystyle \bigsqcup_{x \in \mathbf{C}} p(x,x)} \rar & 
+{\displaystyle \int^{x \in \mathbf{C}} p(x,x)}  &
+\end{tikzcd}\]
+
+# Being the equalizer of a profuct, we can think of the End as some
+# universal quantifier. The variable can appear both covariantly and
+# contravariantly, and we impose a coherence condition over them.
+
+# Dually, the coend can be seen as an existential quantifier.
+
+We can think of them as encoding =forall= (ends) and =exists= (coends).
+
+# We will think of the parametric functions and existential types that
+# appear in functional programming as ends and coends.  The coherence
+# conditions we impose over them are implied by the restrictions of
+# parametricity.
+
+* Code                                                                                    :noexport:
+
+#+BEGIN_SRC emacs-lisp
+  (setq org-emphasis-alist 
+    '(("*" (:weight ultra-bold :foreground "#4f97d7")) 
+      ("/" (:slant italic :foreground "#4f97d7")) 
+      ("_" underline) 
+      ("~" (:weight ultra-bold :foreground "#4f97d7"))
+      ("=" org-verbatim verbatim) 
+      ("+" (:strike-through t))))
+#+END_SRC
+
+#+RESULTS:
+| * | (:weight ultra-bold :foreground #4f97d7) |          |
+| _ | underline                                |          |
+| ~ | (:weight ultra-bold :foreground #4f97d7) |          |
+| = | org-verbatim                             | verbatim |
+| + | (:strike-through t)                      |          |
+
+
+
+
+          ~ncafe>~ let address = "45 Banbury Rd, OX1 3QD, Oxford"
+          
+          ~ncafe>~ address^.postal
+            /Street:   45 Banbury Rd/ 
+            /Code:     OX2 6LH/ 
+            /City:     Oxford/ 
+          
+          ~ncafe>~ address^.postal.street
+          /"45 Banbury Rd"/
+          
+          ~ncafe>~ address^.postal.street %~ "7 Banbury Rd"
+          /"7 Banbury Rd, OX1 3QD, Oxford"/ 
+          
+          ~ncafe>~ address^.postal.city <>~ " (UK)"
+          /"47 Banbury Rd, OX1 3QD, Oxford (UK)"/ 
+          
+          ~ncafe>~ 
+
+
+
+
+
+          *act>* someMailingList
+          /|                 Name |                          Email |  Frequency |/
+          /----------------------------------------------------------------------/ 
+          /|         Turing, Alan |               turing@man.ac.uk |      Daily |/ 
+          /|       Noether, Emily |             emmynoether@fau.eu |    Monthly |/ 
+          /|       Gauss, Carl F. |            gauss@goettingen.de |     Weekly |/ 
+
+          *act>* someMailingList^..mails
+          /["turing@man.ac.uk","emmynoether@fau.eu","gauss@goettingen.de"]/ 
+          
+          *act>* someMailingList^..mails.email.domain
+          /["man.ac.uk","fau.eu","goettingen.de"]/ 
+
+          *act>* someMailingList^..mails.email.domain <~~~ uppercase
+          /|                 Name |                          Email |  Frequency |/ 
+          /----------------------------------------------------------------------/ 
+          /|         Turing, Alan |               turing@MAN.AC.UK |      Daily |/ 
+          /|       Noether, Emily |             emmynoether@FAU.EU |    Monthly |/ 
+          /|       Gauss, Carl F. |            gauss@GOETTINGEN.DE |     Weekly |/
+
+          *act>* 
+          
+* Local variables                                                                         :noexport:
+# Local Variables:
+# org-latex-pdf-process: ("pdflatex --shell-escape -interaction nonstopmode %f" "bibtex %b" "pdflatex --shell-escape -interaction nonstopmode %f")
+# org-latex-packages-alist: nil
+# org-export-with-title: nil
+# End:
+
